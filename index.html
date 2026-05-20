@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Резиновый Кооп</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(circle at 50% 30%, #2a2a4e 0%, #0d0d1a 100%);
+    color: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 32px;
+    background: rgba(22, 33, 62, 0.85);
+    border-radius: 16px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+    min-width: 340px;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(233, 69, 96, 0.3);
+  }
+  .screen.active { display: flex; }
+
+  h1 {
+    font-size: 32px;
+    color: #e94560;
+    text-shadow: 0 2px 12px rgba(233, 69, 96, 0.6);
+    margin-bottom: 4px;
+  }
+  h2 { font-size: 18px; color: #ddd; font-weight: 500; }
+  .subtitle { font-size: 13px; color: #888; }
+
+  button {
+    background: #0f3460;
+    color: #eee;
+    border: 2px solid #e94560;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.15s ease;
+    min-width: 240px;
+  }
+  button:hover:not(:disabled) {
+    background: #e94560;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(233, 69, 96, 0.4);
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.back {
+    background: transparent;
+    border-color: #555;
+    color: #aaa;
+    font-size: 12px;
+    padding: 8px 16px;
+    min-width: 100px;
+    margin-top: 8px;
+  }
+
+  input {
+    padding: 12px;
+    font-size: 16px;
+    border: 2px solid #0f3460;
+    background: #1a1a2e;
+    color: #eee;
+    border-radius: 10px;
+    width: 280px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+  input:focus { outline: none; border-color: #e94560; }
+
+  .key-display {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 16px;
+    background: #0f3460;
+    padding: 14px 20px;
+    border-radius: 10px;
+    border: 2px dashed #e94560;
+    cursor: pointer;
+    user-select: all;
+    word-break: break-all;
+    max-width: 320px;
+    text-align: center;
+    transition: 0.15s;
+  }
+  .key-display:hover { background: #1a3870; }
+  .key-display.copied { background: #43d8c9; color: #0d0d1a; border-color: #43d8c9; }
+
+  .player-list {
+    padding: 12px 16px;
+    background: rgba(15, 52, 96, 0.5);
+    border-radius: 10px;
+    width: 100%;
+    font-size: 14px;
+  }
+  .player-list-item { padding: 3px 0; color: #ddd; }
+  .player-list-item.you { color: #e94560; font-weight: 600; }
+
+  .status { font-size: 13px; color: #aaa; text-align: center; min-height: 16px; }
+  .status.error { color: #e94560; }
+  .status.ok { color: #43d8c9; }
+
+  #game-screen { display: none; width: 100vw; height: 100vh; padding: 0; background: transparent; border: none; box-shadow: none; min-width: 0; }
+  #game-screen.active { display: block; }
+
+  canvas { display: block; cursor: default; }
+
+  .hud {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    color: #eee;
+    font-size: 13px;
+    background: rgba(0,0,0,0.5);
+    padding: 10px 14px;
+    border-radius: 8px;
+    line-height: 1.5;
+    border: 1px solid rgba(233, 69, 96, 0.3);
+  }
+  .hud b { color: #43d8c9; }
+
+  .end-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    z-index: 20;
+  }
+  .end-overlay.active { display: flex; }
+  .end-overlay h2 {
+    font-size: 48px;
+    color: #43d8c9;
+    text-shadow: 0 0 24px rgba(67, 216, 201, 0.6);
+  }
+
+  #debug-log {
+    position: fixed;
+    bottom: 8px;
+    right: 8px;
+    width: 380px;
+    max-height: 240px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.85);
+    color: #43d8c9;
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #43d8c9;
+    z-index: 50;
+    line-height: 1.4;
+    pointer-events: auto;
+  }
+  #debug-log .err { color: #ff6b6b; }
+  #debug-log .ok { color: #43d8c9; }
+  #debug-log .info { color: #f9c80e; }
+  #debug-log .dim { color: #888; }
+  #debug-log-title { color: #fff; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  #debug-log-title button { font-size: 10px; padding: 2px 6px; min-width: 0; background: transparent; border: 1px solid #555; color: #aaa; }
+
+  /* Manual SDP signaling UI */
+  .screen.wide { min-width: 520px; max-width: 640px; max-height: 92vh; overflow-y: auto; }
+  .slot {
+    width: 100%;
+    background: rgba(15, 52, 96, 0.6);
+    border: 1px solid rgba(233, 69, 96, 0.3);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 8px;
+    text-align: left;
+  }
+  .slot.connected { border-color: #43d8c9; background: rgba(67, 216, 201, 0.15); }
+  .slot-header { font-weight: 600; font-size: 14px; color: #e94560; margin-bottom: 6px; }
+  .slot.connected .slot-header { color: #43d8c9; }
+  .slot-status { font-size: 12px; color: #aaa; margin-bottom: 8px; }
+  .slot-step { font-size: 12px; color: #ddd; margin-top: 8px; margin-bottom: 4px; }
+  .sdp-box {
+    width: 100%;
+    height: 64px;
+    background: #0d0d1a;
+    border: 1px solid #0f3460;
+    color: #43d8c9;
+    font-family: 'Consolas', monospace;
+    font-size: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    resize: vertical;
+    word-break: break-all;
+  }
+  .sdp-box:focus { outline: none; border-color: #e94560; }
+  .sdp-row { display: flex; gap: 6px; margin-top: 4px; }
+  .sdp-row button { min-width: 0; flex: 1; font-size: 13px; padding: 8px 12px; }
+  .btn-copy { background: #0f3460; }
+  .btn-copy.copied { background: #43d8c9; color: #0d0d1a; border-color: #43d8c9; }
+  .btn-apply { background: #e94560; }
+</style>
+</head>
+<body>
+  <div id="menu-mode" class="screen active">
+    <h1>Резиновый Кооп</h1>
+    <div class="subtitle">Платформер для смелых и связанных</div>
+    <h2>Выберите режим</h2>
+    <button data-mode="solo">🚶 Соло</button>
+    <button data-mode="coop">👥 Кооператив</button>
+  </div>
+
+  <div id="menu-players" class="screen">
+    <h2>Сколько игроков?</h2>
+    <button data-count="2">2 игрока</button>
+    <button data-count="3">3 игрока</button>
+    <button data-count="4">4 игрока</button>
+    <button class="back" data-back="menu-mode">← Назад</button>
+  </div>
+
+  <div id="menu-role" class="screen">
+    <h2>Хост или клиент?</h2>
+    <button data-role="host">🛡️ Стать хостом</button>
+    <button data-role="join">🔑 Присоединиться</button>
+    <button class="back" data-back="menu-players">← Назад</button>
+  </div>
+
+  <div id="menu-host" class="screen wide">
+    <h2>🛡️ Хост — обмен кодами с игроками</h2>
+    <div class="subtitle">Для каждого игрока: скопируй ОФФЕР, отправь ему (Discord/Telegram), получи ОТВЕТ, вставь его.</div>
+    <div id="host-slots"></div>
+    <div class="status" id="host-status"></div>
+    <button id="start-game" disabled>Начать игру</button>
+    <button class="back" id="back-from-host">← Отмена</button>
+  </div>
+
+  <div id="menu-join" class="screen wide">
+    <h2>🔑 Присоединение к хосту</h2>
+    <div class="subtitle">Тебе хост пришлёт ОФФЕР, ты сгенерируешь ОТВЕТ и отправишь ему обратно.</div>
+    <div class="slot" id="join-slot">
+      <div class="slot-header">Игрок</div>
+      <div class="slot-status" id="join-status">Жду оффер от хоста</div>
+
+      <div class="slot-step">① Вставь ОФФЕР от хоста:</div>
+      <textarea class="sdp-box" id="join-offer-in" placeholder="вставь сюда длинный код, который прислал хост..."></textarea>
+      <div class="sdp-row"><button id="join-gen-answer">🔄 Сгенерировать ОТВЕТ</button></div>
+
+      <div class="slot-step" id="join-step2" style="display:none">② Скопируй ОТВЕТ и отправь хосту:</div>
+      <textarea class="sdp-box" id="join-answer-out" readonly style="display:none"></textarea>
+      <div class="sdp-row" id="join-step2-row" style="display:none">
+        <button class="btn-copy" id="join-copy-answer">📋 Копировать ОТВЕТ</button>
+      </div>
+    </div>
+    <button class="back" data-back="menu-role">← Назад</button>
+  </div>
+
+  <div id="menu-waiting" class="screen">
+    <h2>✅ Подключён к хосту</h2>
+    <div class="status ok">Ожидание начала игры от хоста...</div>
+    <div class="player-list" id="waiting-players"></div>
+  </div>
+
+  <div id="debug-log">
+    <div id="debug-log-title">
+      <span>📜 DEBUG LOG</span>
+      <button onclick="document.getElementById('debug-log').style.display='none'">×</button>
+    </div>
+    <div id="debug-log-body"></div>
+  </div>
+
+  <div id="game-screen">
+    <div class="hud" id="hud"></div>
+    <canvas id="canvas"></canvas>
+    <div class="end-overlay" id="end-overlay">
+      <h2>УРОВЕНЬ ПРОЙДЕН!</h2>
+      <button onclick="location.reload()">В главное меню</button>
+    </div>
+  </div>
+
+  <script>
+  // ============= GLOBAL LOG =============
+  window.log = function(msg, kind) {
+    const body = document.getElementById('debug-log-body');
+    if (!body) {
+      window.__pendingLogs = window.__pendingLogs || [];
+      window.__pendingLogs.push([msg, kind]);
+      return;
+    }
+    const ts = new Date().toTimeString().slice(0, 8);
+    const div = document.createElement('div');
+    div.className = kind || '';
+    div.textContent = `[${ts}] ${msg}`;
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+    if (kind === 'err') console.error(msg);
+    else console.log(msg);
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.__pendingLogs) {
+      window.__pendingLogs.forEach(([m, k]) => window.log(m, k));
+      window.__pendingLogs = null;
+    }
+    window.log('🌐 Страница загружена. Origin: ' + window.location.origin, 'info');
+    window.log('🌐 Protocol: ' + window.location.protocol + (window.location.protocol === 'file:' ? ' ← ПРОБЛЕМА! Нужен http/https' : ''), window.location.protocol === 'file:' ? 'err' : 'ok');
+  });
+
+  // Catch unexpected errors
+  window.addEventListener('error', e => {
+    window.log('JS ERROR: ' + (e.message || e.error), 'err');
+  });
+  window.addEventListener('unhandledrejection', e => {
+    window.log('PROMISE ERROR: ' + (e.reason && e.reason.message || e.reason), 'err');
+  });
+
+  log('💬 Подключение по схеме: ручной SDP-обмен (без сервера)', 'info');
+  </script>
+  <script>
+  'use strict';
+
+  // ============= ICE CONFIG =============
+  const ICE_CONFIG = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
+    ],
+  };
+
+  // ============= SDP HELPERS =============
+  function encodeSDP(desc) {
+    // {type, sdp} → JSON → UTF8 → base64
+    const json = JSON.stringify({ t: desc.type, s: desc.sdp });
+    return btoa(unescape(encodeURIComponent(json)));
+  }
+  function decodeSDP(str) {
+    const json = decodeURIComponent(escape(atob(str.trim())));
+    const o = JSON.parse(json);
+    return { type: o.t, sdp: o.s };
+  }
+  function waitForIceGather(pc, timeoutMs = 6000) {
+    if (pc.iceGatheringState === 'complete') return Promise.resolve();
+    return new Promise(resolve => {
+      let done = false;
+      const finish = () => { if (done) return; done = true; pc.removeEventListener('icegatheringstatechange', onChange); resolve(); };
+      const onChange = () => { if (pc.iceGatheringState === 'complete') finish(); };
+      pc.addEventListener('icegatheringstatechange', onChange);
+      setTimeout(finish, timeoutMs);
+    });
+  }
+  function dcSend(dc, obj) {
+    if (dc && dc.readyState === 'open') {
+      try { dc.send(JSON.stringify(obj)); } catch (e) {}
+    }
+  }
+
+  // ============= STATE =============
+  const state = {
+    mode: null,          // 'solo' | 'coop'
+    playerCount: 1,
+    role: null,          // 'solo' | 'host' | 'join'
+    myIndex: 0,
+    // Host: array of slots {pc, dc, offer, connected, slotIdx}
+    hostSlots: [],
+    // Client: single connection {pc, dc, connected}
+    clientConn: null,
+    gameStarted: false,
+    players: [],
+    inputs: [],
+    finished: false,
+    cameraX: 0,
+  };
+
+  // ============= MENU =============
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id)?.classList.add('active');
+    document.getElementById('game-screen').classList.toggle('active', id === 'game-screen');
+  }
+
+  document.querySelectorAll('button[data-back]').forEach(b => {
+    b.onclick = () => {
+      cleanupConnections();
+      showScreen(b.dataset.back);
+    };
+  });
+
+  function cleanupConnections() {
+    state.hostSlots.forEach(s => { try { s.dc?.close(); s.pc?.close(); } catch(e){} });
+    state.hostSlots = [];
+    if (state.clientConn) {
+      try { state.clientConn.dc?.close(); state.clientConn.pc?.close(); } catch(e){}
+      state.clientConn = null;
+    }
+  }
+
+  document.querySelectorAll('#menu-mode button[data-mode]').forEach(b => {
+    b.onclick = () => {
+      state.mode = b.dataset.mode;
+      if (state.mode === 'solo') {
+        state.playerCount = 1;
+        state.role = 'solo';
+        state.myIndex = 0;
+        startGame();
+      } else {
+        showScreen('menu-players');
+      }
+    };
+  });
+
+  document.querySelectorAll('#menu-players button[data-count]').forEach(b => {
+    b.onclick = () => {
+      state.playerCount = parseInt(b.dataset.count);
+      showScreen('menu-role');
+    };
+  });
+
+  document.querySelectorAll('#menu-role button[data-role]').forEach(b => {
+    b.onclick = () => {
+      state.role = b.dataset.role;
+      if (state.role === 'host') initHost();
+      else showScreen('menu-join');
+    };
+  });
+
+  // ============= HOST (manual SDP) =============
+  async function initHost() {
+    log('🛡️ Старт хоста, игроков нужно: ' + state.playerCount, 'info');
+    state.myIndex = 0;
+    state.hostSlots = [];
+    showScreen('menu-host');
+    setHostStatus('генерирую офферы для каждого игрока...');
+
+    const slotsContainer = document.getElementById('host-slots');
+    slotsContainer.innerHTML = '';
+
+    for (let i = 1; i < state.playerCount; i++) {
+      await createHostSlot(i);
+    }
+
+    setHostStatus('офферы готовы — отправь каждый игроку, вставь полученные ответы');
+    updateStartButton();
+  }
+
+  async function createHostSlot(slotIdx) {
+    log('🔧 Создаю слот для игрока ' + (slotIdx + 1) + '...', 'info');
+    const slotsContainer = document.getElementById('host-slots');
+
+    const pc = new RTCPeerConnection(ICE_CONFIG);
+    const dc = pc.createDataChannel('game', { ordered: false, maxRetransmits: 0 });
+
+    const slot = { slotIdx, pc, dc, connected: false, offer: null };
+    state.hostSlots.push(slot);
+
+    pc.oniceconnectionstatechange = () => {
+      log('   slot ' + (slotIdx + 1) + ' ICE: ' + pc.iceConnectionState, 'dim');
+      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+        markSlotDisconnected(slotIdx);
+      }
+    };
+
+    dc.onopen = () => {
+      log('✅ DC открыт со слотом ' + (slotIdx + 1), 'ok');
+      slot.connected = true;
+      markSlotConnected(slotIdx);
+      dcSend(dc, { type: 'welcome', index: slotIdx, total: state.playerCount });
+      broadcastLobbyToAll();
+      updateStartButton();
+    };
+    dc.onclose = () => {
+      log('⚠️ DC закрыт со слотом ' + (slotIdx + 1), 'err');
+      slot.connected = false;
+      markSlotDisconnected(slotIdx);
+      updateStartButton();
+    };
+    dc.onmessage = e => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'input') state.inputs[slotIdx] = msg.input;
+      } catch (ex) {}
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitForIceGather(pc);
+    const encoded = encodeSDP(pc.localDescription);
+    slot.offer = encoded;
+
+    const slotEl = document.createElement('div');
+    slotEl.className = 'slot';
+    slotEl.id = 'slot-' + slotIdx;
+    slotEl.innerHTML = `
+      <div class="slot-header">Игрок ${slotIdx + 1}</div>
+      <div class="slot-status" id="slot-status-${slotIdx}">ожидает подключения</div>
+      <div class="slot-step">① Скопируй ОФФЕР и отправь игроку ${slotIdx + 1} (Discord/Telegram):</div>
+      <textarea class="sdp-box" readonly>${encoded}</textarea>
+      <div class="sdp-row">
+        <button class="btn-copy" data-action="copy-offer" data-slot="${slotIdx}">📋 Копировать ОФФЕР</button>
+      </div>
+      <div class="slot-step">② Вставь ОТВЕТ от игрока ${slotIdx + 1}:</div>
+      <textarea class="sdp-box" id="answer-in-${slotIdx}" placeholder="вставь сюда ответ игрока ${slotIdx + 1}..."></textarea>
+      <div class="sdp-row">
+        <button class="btn-apply" data-action="apply-answer" data-slot="${slotIdx}">✅ Подключить игрока ${slotIdx + 1}</button>
+      </div>
+    `;
+    slotsContainer.appendChild(slotEl);
+    log('   ↳ оффер готов (' + encoded.length + ' симв.)', 'ok');
+  }
+
+  function markSlotConnected(slotIdx) {
+    const el = document.getElementById('slot-' + slotIdx);
+    if (el) {
+      el.classList.add('connected');
+      const status = document.getElementById('slot-status-' + slotIdx);
+      if (status) status.textContent = '✅ подключён';
+    }
+  }
+  function markSlotDisconnected(slotIdx) {
+    const el = document.getElementById('slot-' + slotIdx);
+    if (el) {
+      el.classList.remove('connected');
+      const status = document.getElementById('slot-status-' + slotIdx);
+      if (status) status.textContent = '⚠️ отключён';
+    }
+  }
+
+  document.getElementById('host-slots').addEventListener('click', async e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const slotIdx = parseInt(btn.dataset.slot);
+    if (action === 'copy-offer') {
+      const slot = state.hostSlots.find(s => s.slotIdx === slotIdx);
+      if (slot) {
+        try { await navigator.clipboard.writeText(slot.offer); } catch(err) {}
+        btn.classList.add('copied');
+        btn.textContent = '✓ Скопировано';
+        setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '📋 Копировать ОФФЕР'; }, 1500);
+      }
+    } else if (action === 'apply-answer') {
+      const ta = document.getElementById('answer-in-' + slotIdx);
+      const text = ta.value.trim();
+      if (!text) { alert('Сначала вставь ОТВЕТ игрока'); return; }
+      const slot = state.hostSlots.find(s => s.slotIdx === slotIdx);
+      if (!slot) return;
+      try {
+        const answer = decodeSDP(text);
+        log('📥 Применяю ОТВЕТ от игрока ' + (slotIdx + 1) + '...', 'info');
+        await slot.pc.setRemoteDescription(answer);
+        log('   ↳ жду установки DC канала...', 'dim');
+        btn.disabled = true;
+        btn.textContent = '⏳ соединение...';
+      } catch (err) {
+        log('❌ Не удалось применить ответ: ' + err.message, 'err');
+        alert('Некорректный ОТВЕТ. Убедись что скопирован полностью.');
+      }
+    }
+  });
+
+  function setHostStatus(text, cls) {
+    const el = document.getElementById('host-status');
+    el.textContent = text;
+    el.className = 'status ' + (cls || '');
+  }
+
+  function broadcastLobbyToAll() {
+    const total = 1 + state.hostSlots.filter(s => s.connected).length;
+    state.hostSlots.forEach(s => {
+      if (s.connected) dcSend(s.dc, { type: 'lobby', total, target: state.playerCount });
+    });
+  }
+
+  function updateStartButton() {
+    const connected = state.hostSlots.filter(s => s.connected).length;
+    const all = connected === state.playerCount - 1;
+    document.getElementById('start-game').disabled = !all;
+    if (all) setHostStatus('✅ все подключены — можно начинать!', 'ok');
+  }
+
+  document.getElementById('start-game').onclick = () => {
+    state.hostSlots.forEach(s => { if (s.connected) dcSend(s.dc, { type: 'start' }); });
+    startGame();
+  };
+
+  document.getElementById('back-from-host').onclick = () => {
+    cleanupConnections();
+    showScreen('menu-role');
+  };
+
+  // ============= JOIN (manual SDP) =============
+  document.getElementById('join-gen-answer').onclick = async () => {
+    const encodedOffer = document.getElementById('join-offer-in').value.trim();
+    if (!encodedOffer) { alert('Сначала вставь ОФФЕР от хоста'); return; }
+    const status = document.getElementById('join-status');
+
+    log('🔑 Клиент: получаю ОФФЕР от хоста...', 'info');
+    status.textContent = 'обрабатываю оффер...';
+
+    let offer;
+    try {
+      offer = decodeSDP(encodedOffer);
+    } catch (e) {
+      log('❌ Не удалось распарсить оффер: ' + e.message, 'err');
+      status.textContent = 'некорректный оффер';
+      alert('Оффер испорчен. Скопируй полностью от хоста.');
+      return;
+    }
+
+    if (state.clientConn) {
+      try { state.clientConn.pc?.close(); } catch(e){}
+    }
+
+    const pc = new RTCPeerConnection(ICE_CONFIG);
+    state.clientConn = { pc, dc: null, connected: false };
+
+    pc.oniceconnectionstatechange = () => {
+      log('   ICE state: ' + pc.iceConnectionState, 'dim');
+    };
+
+    pc.ondatachannel = e => {
+      const dc = e.channel;
+      state.clientConn.dc = dc;
+      log('📡 Получен DataChannel от хоста', 'info');
+      dc.onopen = () => {
+        log('✅ DC открыт с хостом!', 'ok');
+        state.clientConn.connected = true;
+      };
+      dc.onmessage = ev => {
+        try {
+          const msg = JSON.parse(ev.data);
+          handleClientMessage(msg);
+        } catch (ex) {}
+      };
+      dc.onclose = () => {
+        log('⚠️ DC закрыт хостом', 'err');
+        state.clientConn.connected = false;
+      };
+    };
+
+    try {
+      await pc.setRemoteDescription(offer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      log('   ↳ собираю ICE кандидатов...', 'dim');
+      await waitForIceGather(pc);
+      const encodedAnswer = encodeSDP(pc.localDescription);
+      log('✅ ОТВЕТ готов (' + encodedAnswer.length + ' симв.)', 'ok');
+
+      document.getElementById('join-answer-out').value = encodedAnswer;
+      document.getElementById('join-step2').style.display = '';
+      document.getElementById('join-answer-out').style.display = '';
+      document.getElementById('join-step2-row').style.display = '';
+
+      status.textContent = '✅ ОТВЕТ готов — скопируй и отправь хосту, потом жди подключения';
+    } catch (err) {
+      log('❌ Ошибка генерации ответа: ' + err.message, 'err');
+      status.textContent = 'ошибка: ' + err.message;
+    }
+  };
+
+  document.getElementById('join-copy-answer').onclick = async function() {
+    const text = document.getElementById('join-answer-out').value;
+    try { await navigator.clipboard.writeText(text); } catch(e){}
+    this.classList.add('copied');
+    this.textContent = '✓ Скопировано';
+    setTimeout(() => { this.classList.remove('copied'); this.textContent = '📋 Копировать ОТВЕТ'; }, 1500);
+  };
+
+  // ============= MESSAGES =============
+  function handleClientMessage(msg) {
+    if (msg.type === 'welcome') {
+      state.myIndex = msg.index;
+      state.playerCount = msg.total;
+      log('👋 welcome: я игрок ' + (msg.index + 1) + ' из ' + msg.total, 'ok');
+      showScreen('menu-waiting');
+    } else if (msg.type === 'lobby') {
+      const list = [];
+      for (let i = 0; i < msg.target; i++) {
+        const connected = i < msg.total;
+        const isMe = i === state.myIndex;
+        const label = i === 0 ? 'Игрок 1 (хост)' : `Игрок ${i + 1}`;
+        list.push(`<div class="player-list-item ${isMe ? 'you' : ''}" ${!connected ? 'style="color:#666"' : ''}>• ${label} ${isMe ? '— это вы' : ''} ${!connected ? '(ждём...)' : ''}</div>`);
+      }
+      document.getElementById('waiting-players').innerHTML =
+        `<div style="margin-bottom:6px;color:#aaa">Игроков: ${msg.total} / ${msg.target}</div>` +
+        list.join('');
+    } else if (msg.type === 'start') {
+      log('🎮 Хост начал игру', 'ok');
+      startGame();
+    } else if (msg.type === 'state') {
+      state.players = msg.players;
+      state.finished = msg.finished;
+      state.cameraX = msg.cameraX;
+    }
+  }
+
+  // ============= GAME =============
+  const COLORS = ['#e94560', '#f9c80e', '#43d8c9', '#a45ee5'];
+
+  const LEVEL = {
+    width: 4800,
+    height: 720,
+    platforms: [
+      // start (wide)
+      { x: 0,    y: 600, w: 600, h: 120 },
+      // ascending steps
+      { x: 720,  y: 540, w: 140, h: 20 },
+      { x: 940,  y: 460, w: 140, h: 20 },
+      { x: 1160, y: 380, w: 140, h: 20 },
+      { x: 1380, y: 460, w: 140, h: 20 },
+      { x: 1600, y: 540, w: 140, h: 20 },
+      // rest plateau
+      { x: 1820, y: 600, w: 400, h: 120 },
+      // coordination gaps - need rope tension to help partner
+      { x: 2320, y: 500, w: 90, h: 20 },
+      { x: 2500, y: 420, w: 90, h: 20 },
+      { x: 2680, y: 500, w: 90, h: 20 },
+      { x: 2860, y: 600, w: 280, h: 120 },
+      // vertical zigzag climb
+      { x: 3220, y: 540, w: 140, h: 20 },
+      { x: 3060, y: 440, w: 140, h: 20 },
+      { x: 3260, y: 340, w: 140, h: 20 },
+      { x: 3080, y: 240, w: 140, h: 20 },
+      { x: 3280, y: 160, w: 140, h: 20 },
+      // gap to high platform
+      { x: 3520, y: 200, w: 200, h: 20 },
+      // long drop to finish
+      { x: 3800, y: 600, w: 1000, h: 120 },
+    ],
+    spawn: { x: 80, y: 560 },
+    goal: { x: 4600, y: 540, w: 90, h: 60 },
+  };
+
+  let canvas, ctx;
+  const keys = {};
+  let lastTime = 0;
+  let netSendAccum = 0;
+  let gameLoopId = null;
+
+  const GRAVITY = 0.6;
+  const MOVE_ACCEL = 0.9;
+  const AIR_ACCEL = 0.45;
+  const MAX_SPEED = 5.2;
+  const JUMP_V = -12.2;
+  const FRICTION = 0.82;
+  const ROPE_REST = 130;
+  const ROPE_K = 0.05;
+  const ROPE_MAX_PULL = 1.0;
+  const PLAYER_W = 28;
+  const PLAYER_H = 32;
+
+  function startGame() {
+    showScreen('game-screen');
+    canvas = document.getElementById('canvas');
+    ctx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    state.gameStarted = true;
+    state.finished = false;
+    state.players = [];
+    for (let i = 0; i < state.playerCount; i++) {
+      state.players.push({
+        x: LEVEL.spawn.x + i * 36,
+        y: LEVEL.spawn.y,
+        vx: 0, vy: 0,
+        onGround: false,
+      });
+    }
+    state.inputs = [];
+    for (let i = 0; i < state.playerCount; i++) {
+      state.inputs.push({ left: false, right: false, jump: false });
+    }
+
+    setupControls();
+    lastTime = performance.now();
+
+    if (state.role === 'host' || state.role === 'solo') {
+      gameLoopId = requestAnimationFrame(hostLoop);
+    } else {
+      gameLoopId = requestAnimationFrame(clientLoop);
+    }
+  }
+
+  function resizeCanvas() {
+    if (!canvas) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function setupControls() {
+    document.addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) {
+        e.preventDefault();
+      }
+    });
+    document.addEventListener('keyup', e => { keys[e.code] = false; });
+  }
+
+  function getMyInput() {
+    return {
+      left:  !!(keys.ArrowLeft  || keys.KeyA),
+      right: !!(keys.ArrowRight || keys.KeyD),
+      jump:  !!(keys.ArrowUp    || keys.KeyW || keys.Space),
+    };
+  }
+
+  let lastBroadcast = 0;
+  function hostLoop(now) {
+    const dt = Math.min(33, now - lastTime) / 16.67;
+    lastTime = now;
+
+    state.inputs[0] = getMyInput();
+    stepPhysics(dt);
+    updateCamera();
+    render();
+
+    // Broadcast state ~30Hz to all connected DCs
+    if (now - lastBroadcast > 33) {
+      lastBroadcast = now;
+      const msg = {
+        type: 'state',
+        players: state.players.map(p => ({ x: p.x, y: p.y, vx: p.vx, vy: p.vy, onGround: p.onGround })),
+        finished: state.finished,
+        cameraX: state.cameraX,
+      };
+      state.hostSlots.forEach(s => { if (s.connected) dcSend(s.dc, msg); });
+    }
+
+    gameLoopId = requestAnimationFrame(hostLoop);
+  }
+
+  let lastInputSend = 0;
+  function clientLoop(now) {
+    lastTime = now;
+
+    // Send input ~30Hz to host
+    if (state.clientConn?.connected && now - lastInputSend > 33) {
+      lastInputSend = now;
+      dcSend(state.clientConn.dc, { type: 'input', input: getMyInput() });
+    }
+
+    render();
+    gameLoopId = requestAnimationFrame(clientLoop);
+  }
+
+  function stepPhysics(dt) {
+    // Inputs → velocity
+    state.players.forEach((p, i) => {
+      const inp = state.inputs[i] || {};
+      const accel = p.onGround ? MOVE_ACCEL : AIR_ACCEL;
+      if (inp.left)  p.vx -= accel * dt;
+      if (inp.right) p.vx += accel * dt;
+      if (!inp.left && !inp.right && p.onGround) p.vx *= Math.pow(FRICTION, dt);
+      p.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, p.vx));
+
+      if (inp.jump && p.onGround) {
+        p.vy = JUMP_V;
+        p.onGround = false;
+      }
+
+      p.vy += GRAVITY * dt;
+      p.vy = Math.min(p.vy, 18);
+    });
+
+    // Rope spring forces (chain)
+    if (state.players.length > 1) {
+      for (let iter = 0; iter < 2; iter++) {
+        for (let i = 0; i < state.players.length - 1; i++) {
+          const a = state.players[i];
+          const b = state.players[i + 1];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const d = Math.sqrt(dx*dx + dy*dy) || 0.001;
+          if (d > ROPE_REST) {
+            const stretch = d - ROPE_REST;
+            const force = Math.min(stretch * ROPE_K, ROPE_MAX_PULL) * dt;
+            const nx = dx / d;
+            const ny = dy / d;
+            a.vx += nx * force;
+            a.vy += ny * force * 0.5;
+            b.vx -= nx * force;
+            b.vy -= ny * force * 0.5;
+          }
+        }
+      }
+    }
+
+    // Move + collide each player
+    state.players.forEach(p => {
+      // X axis
+      p.x += p.vx * dt;
+      LEVEL.platforms.forEach(plat => {
+        if (aabb(p.x - PLAYER_W/2, p.y - PLAYER_H, PLAYER_W, PLAYER_H, plat.x, plat.y, plat.w, plat.h)) {
+          if (p.vx > 0) p.x = plat.x - PLAYER_W/2;
+          else if (p.vx < 0) p.x = plat.x + plat.w + PLAYER_W/2;
+          p.vx = 0;
+        }
+      });
+
+      // Y axis
+      p.y += p.vy * dt;
+      p.onGround = false;
+      LEVEL.platforms.forEach(plat => {
+        if (aabb(p.x - PLAYER_W/2, p.y - PLAYER_H, PLAYER_W, PLAYER_H, plat.x, plat.y, plat.w, plat.h)) {
+          if (p.vy > 0) {
+            p.y = plat.y;
+            p.vy = 0;
+            p.onGround = true;
+          } else if (p.vy < 0) {
+            p.y = plat.y + plat.h + PLAYER_H;
+            p.vy = 0;
+          }
+        }
+      });
+
+      // World bounds
+      if (p.x < PLAYER_W/2) { p.x = PLAYER_W/2; p.vx = 0; }
+      if (p.x > LEVEL.width - PLAYER_W/2) { p.x = LEVEL.width - PLAYER_W/2; p.vx = 0; }
+
+      // Fall reset (everyone)
+      if (p.y > LEVEL.height + 200) {
+        state.players.forEach((pp, j) => {
+          pp.x = LEVEL.spawn.x + j * 36;
+          pp.y = LEVEL.spawn.y;
+          pp.vx = 0; pp.vy = 0;
+        });
+      }
+    });
+
+    // Goal check: all players inside goal
+    if (!state.finished) {
+      let allIn = true;
+      state.players.forEach(p => {
+        if (!aabb(p.x - PLAYER_W/2, p.y - PLAYER_H, PLAYER_W, PLAYER_H, LEVEL.goal.x, LEVEL.goal.y, LEVEL.goal.w, LEVEL.goal.h)) {
+          allIn = false;
+        }
+      });
+      if (allIn) {
+        state.finished = true;
+        document.getElementById('end-overlay').classList.add('active');
+      }
+    }
+  }
+
+  function aabb(ax, ay, aw, ah, bx, by, bw, bh) {
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+  }
+
+  function updateCamera() {
+    if (!state.players.length) return;
+    let sumX = 0, minX = Infinity, maxX = -Infinity;
+    state.players.forEach(p => {
+      sumX += p.x;
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+    });
+    const avgX = sumX / state.players.length;
+    state.cameraX = avgX - canvas.width / 2;
+    state.cameraX = Math.max(0, Math.min(LEVEL.width - canvas.width, state.cameraX));
+  }
+
+  function render() {
+    if (!ctx) return;
+    const w = canvas.width, h = canvas.height;
+    const cam = state.cameraX || 0;
+
+    // Sky gradient background
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, '#1a1a2e');
+    grad.addColorStop(1, '#16213e');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Parallax stars
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    for (let i = 0; i < 80; i++) {
+      const sx = ((i * 137) % LEVEL.width) - cam * 0.3;
+      const sy = (i * 73) % (LEVEL.height - 100);
+      const wrapX = ((sx % w) + w) % w;
+      ctx.fillRect(wrapX, sy, 2, 2);
+    }
+
+    ctx.save();
+    ctx.translate(-cam, 0);
+
+    // Platforms
+    LEVEL.platforms.forEach(plat => {
+      // Only draw visible
+      if (plat.x + plat.w < cam - 50 || plat.x > cam + w + 50) return;
+      ctx.fillStyle = '#0f3460';
+      ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+      ctx.fillStyle = '#e94560';
+      ctx.fillRect(plat.x, plat.y, plat.w, 4);
+      // bottom shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(plat.x, plat.y + plat.h - 3, plat.w, 3);
+    });
+
+    // Goal flag
+    const g = LEVEL.goal;
+    ctx.fillStyle = '#43d8c9';
+    ctx.fillRect(g.x, g.y, g.w, g.h);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(g.x, g.y, g.w, 8);
+    ctx.fillStyle = '#0d0d1a';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('ФИНИШ', g.x + 12, g.y + 38);
+
+    // Ropes between consecutive players
+    if (state.players.length > 1) {
+      for (let i = 0; i < state.players.length - 1; i++) {
+        drawRope(state.players[i], state.players[i + 1]);
+      }
+    }
+
+    // Players
+    state.players.forEach((p, i) => {
+      const color = COLORS[i] || '#fff';
+      const px = p.x - PLAYER_W/2;
+      const py = p.y - PLAYER_H;
+
+      // body
+      ctx.fillStyle = color;
+      ctx.fillRect(px, py, PLAYER_W, PLAYER_H);
+      // highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(px, py, PLAYER_W, 6);
+      // eyes
+      const facing = p.vx >= 0 ? 1 : -1;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(p.x - 8, py + 8, 6, 6);
+      ctx.fillRect(p.x + 2, py + 8, 6, 6);
+      ctx.fillStyle = '#0d0d1a';
+      ctx.fillRect(p.x - 7 + (facing > 0 ? 2 : 0), py + 10, 3, 3);
+      ctx.fillRect(p.x + 3 + (facing > 0 ? 2 : 0), py + 10, 3, 3);
+
+      // My player indicator (arrow on top)
+      if (i === state.myIndex) {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(p.x, py - 14);
+        ctx.lineTo(p.x - 7, py - 4);
+        ctx.lineTo(p.x + 7, py - 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+
+    ctx.restore();
+
+    // HUD
+    const hud = document.getElementById('hud');
+    let roleText = '';
+    if (state.role === 'solo') roleText = 'Соло';
+    else if (state.role === 'host') roleText = 'Хост';
+    else roleText = 'Клиент';
+    hud.innerHTML =
+      `Игрок ${state.myIndex + 1} <span style="color:${COLORS[state.myIndex]}">●</span> <b>${roleText}</b><br>` +
+      `← → или A/D — движение<br>` +
+      `↑ / W / Пробел — прыжок<br>` +
+      (state.playerCount > 1 ? `<span style="color:#aaa">Дойдите до финиша все вместе</span>` : '');
+  }
+
+  function drawRope(a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const d = Math.sqrt(dx*dx + dy*dy) || 0.001;
+    const stretch = Math.max(0, d - ROPE_REST);
+    const tension = Math.min(1, stretch / (ROPE_REST * 1.2));
+
+    // Sag decreases with tension
+    const sag = Math.max(0, 40 - stretch * 0.4);
+
+    const ax = a.x, ay = a.y - PLAYER_H / 2;
+    const bx = b.x, by = b.y - PLAYER_H / 2;
+    const cx = (ax + bx) / 2;
+    const cy = (ay + by) / 2 + sag;
+
+    // Color shifts to red as tension increases
+    const r = Math.floor(120 + 135 * tension);
+    const g = Math.floor(80  - 80  * tension);
+    const bl= Math.floor(140 - 140 * tension);
+    ctx.strokeStyle = `rgb(${r},${Math.max(0,g)},${Math.max(0,bl)})`;
+    ctx.lineWidth = 3 + 2 * tension;
+    ctx.lineCap = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.quadraticCurveTo(cx, cy, bx, by);
+    ctx.stroke();
+
+    // little glow when very tense
+    if (tension > 0.6) {
+      ctx.strokeStyle = `rgba(255, 100, 100, ${(tension - 0.6) * 0.6})`;
+      ctx.lineWidth = 7 + 4 * tension;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.quadraticCurveTo(cx, cy, bx, by);
+      ctx.stroke();
+    }
+  }
+  </script>
+</body>
+</html>
